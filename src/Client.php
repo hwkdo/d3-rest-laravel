@@ -30,7 +30,7 @@ class Client extends Eloquent
 
     public static function getBaseUrl(): string
     {
-        return str(config("d3-rest.api-base-url"))->beforeLast("/")->value();
+        return str(config("d3-rest-laravel.api-base-url"))->beforeLast("/")->value();
     }
 
     public function getDoc($id, $raw = false)
