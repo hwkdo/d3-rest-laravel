@@ -36,9 +36,9 @@ class Client extends Eloquent
     public function getDoc($id, $raw = false)
     {
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer '.config('d3-rest.api-key'),
+            'Authorization' => 'Bearer '.config('d3-rest-laravel.api-key'),
             'Accept' => 'application/json',
-        ])->get(config('d3-rest.api-dms-url').'o2/'.$id.'/');
+        ])->get(config('d3-rest-laravel.api-dms-url').'o2/'.$id.'/');
 
         if(!$raw) {
             $data = $response->json();
@@ -53,11 +53,11 @@ class Client extends Eloquent
     public function sendNote($von, $message, $id)
     {
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer '.config('d3-rest.api-key'),
+            'Authorization' => 'Bearer '.config('d3-rest-laravel.api-key'),
             'Accept' => 'application/json',
             'Content-Type' => 'application/octet-stream',
-        ])->withBody(json_encode(['text' => 'Von '.$von.': '.$message]), 'application/json')->post(config('d3-rest.api-dms-url').'o2/'.$id.'/n/');
-        $url = config('d3-rest.api-dms-url').'o2/'.$id.'/n/';
+        ])->withBody(json_encode(['text' => 'Von '.$von.': '.$message]), 'application/json')->post(config('d3-rest-laravel.api-dms-url').'o2/'.$id.'/n/');
+        $url = config('d3-rest-laravel.api-dms-url').'o2/'.$id.'/n/';
         $message = $response->created() ? 'Datei erfolgreich hochgeladen' : json_encode($response->json());
     }
 
@@ -75,10 +75,10 @@ class Client extends Eloquent
         
         
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer '.config('d3-rest.api-key'),
+            'Authorization' => 'Bearer '.config('d3-rest-laravel.api-key'),
             'Accept' => 'application/json',
             'Content-Type' => 'application/octet-stream',
-        ])->withBody($file, 'application/octet-stream')->post(config('d3-rest.api-dms-url').'blob/chunk/');
+        ])->withBody($file, 'application/octet-stream')->post(config('d3-rest-laravel.api-dms-url').'blob/chunk/');
                         
         $message = $response->created() ? 'Datei erfolgreich hochgeladen' : json_encode($response->json());
         return new TempUploadDTO(
@@ -92,9 +92,9 @@ class Client extends Eloquent
     public function pushDocument($data)
     {
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer '.config('d3-rest.api-key'),
+            'Authorization' => 'Bearer '.config('d3-rest-laravel.api-key'),
             'Accept' => 'application/json',
-        ])->attach('data', json_encode($data))->post(config('d3-rest.api-dms-url').'o2/');
+        ])->attach('data', json_encode($data))->post(config('d3-rest-laravel.api-dms-url').'o2/');
 
         $message = $response->created() ? 'Dokument erfolgreich erstellt' : json_encode($response->json());
         return new NewObjectDTO(
@@ -108,7 +108,7 @@ class Client extends Eloquent
 
     public function SearchResult($fulltext = null, DocTypeEnum $doc_type = null, $children_of = null, $page_size = 200, $raw = false)
     {
-        $url = config('d3-rest.api-dms-url').'sr?fulltext='.$fulltext;
+        $url = config('d3-rest-laravel.api-dms-url').'sr?fulltext='.$fulltext;
         if($doc_type)
         {
             $url .= '&objectdefinitionids=['.$doc_type->value.']';
@@ -122,7 +122,7 @@ class Client extends Eloquent
             $url .= '&children_of='.$children_of;
         }
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer '.config('d3-rest.api-key'),
+            'Authorization' => 'Bearer '.config('d3-rest-laravel.api-key'),
             'Accept' => 'application/json',
         ])->get($url);        
         
@@ -137,9 +137,9 @@ class Client extends Eloquent
     public function getUserAbsence($user_id, $raw = false)
     {
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer '.config('d3-rest.api-key'),
+            'Authorization' => 'Bearer '.config('d3-rest-laravel.api-key'),
             'Accept' => 'application/json',
-        ])->get(config('d3-rest.api-userprofile-url').'absence?userId='.$user_id);
+        ])->get(config('d3-rest-laravel.api-userprofile-url').'absence?userId='.$user_id);
 
         return $raw ? $response->json() : new BenutzerAbwesenheit($response->json());
     }
@@ -156,9 +156,9 @@ class Client extends Eloquent
         ];
 
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer '.config('d3-rest.api-key'),
+            'Authorization' => 'Bearer '.config('d3-rest-laravel.api-key'),
             'Accept' => 'application/json',
-        ])->patch(config('d3-rest.api-userprofile-url').'absence?isAdmin=true&isOwnUser=false', $data);
+        ])->patch(config('d3-rest-laravel.api-userprofile-url').'absence?isAdmin=true&isOwnUser=false', $data);
         
         #dump($data);
         #dump($response->status());
@@ -174,12 +174,12 @@ class Client extends Eloquent
         ];
         dump($data);
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer '.config('d3-rest.api-key'),
+            'Authorization' => 'Bearer '.config('d3-rest-laravel.api-key'),
             'Accept' => 'application/json',
-        ])->patch(config('d3-rest.api-userprofile-url').'absence?isAdmin=true&isOwnUser=false', $data);
+        ])->patch(config('d3-rest-laravel.api-userprofile-url').'absence?isAdmin=true&isOwnUser=false', $data);
 
         
-        // ])->withBody(json_encode(['text' => 'Von '.$von.': '.$message]), 'application/json')->post(config('d3-rest.api-dms-url').'o2/'.$id.'/n/');
+        // ])->withBody(json_encode(['text' => 'Von '.$von.': '.$message]), 'application/json')->post(config('d3-rest-laravel.api-dms-url').'o2/'.$id.'/n/');
         
         dump($response->status());
         return $raw ? $response->json() : new BenutzerAbwesenheit($response->json());
@@ -188,21 +188,21 @@ class Client extends Eloquent
     public function getUsers()
     {
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer '.config('d3-rest.api-key'),
+            'Authorization' => 'Bearer '.config('d3-rest-laravel.api-key'),
             'Accept' => 'application/json',
-        ])->get(config('d3-rest.api-identity-url').'users');
+        ])->get(config('d3-rest-laravel.api-identity-url').'users');
 
         return $response->json();
     }
 
     public function getUserIdByUsername($username)
     {
-        return collect($this->getUsers()['resources'])->firstWhere('userName', config('d3-rest.LDAP_DOMAIN_PREFIX').'\\'.$username)['id'];
+        return collect($this->getUsers()['resources'])->firstWhere('userName', config('d3-rest-laravel.LDAP_DOMAIN_PREFIX').'\\'.$username)['id'];
     }
 
     public function getUsernameByUserId($user_id)
     {
         $username = collect($this->getUsers()['resources'])->firstWhere('id', $user_id)['userName'];
-        return str($username)->after(config('d3-rest.LDAP_DOMAIN_PREFIX').'\\')->value();
+        return str($username)->after(config('d3-rest-laravel.LDAP_DOMAIN_PREFIX').'\\')->value();
     }
 }
