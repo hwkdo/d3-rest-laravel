@@ -1,5 +1,6 @@
 <?php
-namespace AlexanderDieckmann\d3RestLaravel;
+namespace Hwkdo\D3RestLaravel;
+
 use Illuminate\Support\Facades\Facade;
 class d3RestLaravelFacade extends Facade
 {
