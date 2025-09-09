@@ -11,6 +11,6 @@ class D3RestLaravel extends Facade
 {
     protected static function getFacadeAccessor(): string
     {
-        return \Hwkdo\D3RestLaravel\D3RestLaravel::class;
+        return \Hwkdo\D3RestLaravel\Client::class;
     }
 }
