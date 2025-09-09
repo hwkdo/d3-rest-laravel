@@ -2,7 +2,7 @@
 
 namespace Hwkdo\D3RestLaravel\Services;
 
-use Hwkdo\D3RestLaravel\d3RestLaravelFacade;
+use Hwkdo\D3RestLaravel\Facades\D3RestLaravel;
 use Illuminate\Support\Collection;
 
 class fromApiService
@@ -13,7 +13,7 @@ class fromApiService
 
     public function getLink(): string
     {
-        return d3RestLaravelFacade::getBaseUrl().$this->data['_links']['details']['href'];
+        return D3RestLaravel::getBaseUrl().$this->data['_links']['details']['href'];
     }
 
     public function getId(): string
@@ -81,7 +81,7 @@ class fromApiService
     {
         $benutzer = $this->getDisplayProperty(79);
         if(str($benutzer)->contains(' ...')) {
-            $extendedData = d3RestLaravelFacade::getDoc($this->getId(), true);
+            $extendedData = D3RestLaravel::getDoc($this->getId(), true);
             return collect($extendedData["multivalueProperties"])->where('id', 79)->first()["values"];
         } else {
             return [$benutzer];
@@ -97,7 +97,7 @@ class fromApiService
     {
         $abteilung = $this->getDisplayProperty(80);
         if(str($abteilung)->contains(' ...')) {
-            $extendedData = d3RestLaravelFacade::getDoc($this->getId(), true);
+            $extendedData = D3RestLaravel::getDoc($this->getId(), true);
             return collect($extendedData["multivalueProperties"])->where('id', 80)->first()["values"];
         } else {
             return [$abteilung];

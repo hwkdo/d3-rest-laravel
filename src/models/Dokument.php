@@ -5,7 +5,7 @@ namespace Hwkdo\D3RestLaravel\models;
 use Hwkdo\D3RestLaravel\Attributes\D3id;
 use Hwkdo\D3RestLaravel\Attributes\D3link;
 use Hwkdo\D3RestLaravel\Attributes\D3SystemProperty;
-use Hwkdo\D3RestLaravel\d3RestLaravelFacade;
+use Hwkdo\D3RestLaravel\Facades\D3RestLaravel;
 use Hwkdo\D3RestLaravel\Enums\DocTypeEnum;
 use Hwkdo\D3RestLaravel\Interfaces\DokumentInterface;
 use Hwkdo\D3RestLaravel\models\Bestellschein;
@@ -198,7 +198,7 @@ abstract class Dokument implements DokumentInterface
     {
         $data = $this->makeApiData(file: $file, filepath: $filepath);
         $this->validate();
-        $response = d3RestLaravelFacade::pushDocument($data);
+        $response = D3RestLaravel::pushDocument($data);
         if($response->success) {
             $this->id = $response->id;
         }
