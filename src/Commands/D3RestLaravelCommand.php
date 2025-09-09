@@ -1,12 +1,12 @@
 <?php
 
-namespace VendorName\Skeleton\Commands;
+namespace Hwkdo\D3RestLaravel\Commands;
 
 use Illuminate\Console\Command;
 
-class SkeletonCommand extends Command
+class D3RestLaravelCommand extends Command
 {
-    public $signature = 'skeleton';
+    public $signature = 'd3-rest-laravel';
 
     public $description = 'My command';
 
