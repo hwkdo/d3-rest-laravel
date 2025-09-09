@@ -8,8 +8,8 @@ class BenutzerAbwesenheit
 {
     public ?string $userid;
     public bool $abwesend;
-    public ?Illuminate\Contracts\Auth\Authenticatable $user;
-    public ?Illuminate\Contracts\Auth\Authenticatable $vertreter;
+    public ?\Illuminate\Contracts\Auth\Authenticatable $user;
+    public ?\Illuminate\Contracts\Auth\Authenticatable $vertreter;
     
     public function __construct($data)
     {
