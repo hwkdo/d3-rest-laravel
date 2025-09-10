@@ -172,7 +172,7 @@ class Client extends Eloquent
             'isAbsent' => false,
             'userId' => $this->getUserIdByUsername($username),
         ];
-        dump($data);
+        #dump($data);
         $response = Http::withHeaders([
             'Authorization' => 'Bearer '.config('d3-rest-laravel.api-key'),
             'Accept' => 'application/json',
@@ -181,7 +181,7 @@ class Client extends Eloquent
         
         // ])->withBody(json_encode(['text' => 'Von '.$von.': '.$message]), 'application/json')->post(config('d3-rest-laravel.api-dms-url').'o2/'.$id.'/n/');
         
-        dump($response->status());
+        #dump($response->status());
         return $raw ? $response->json() : new BenutzerAbwesenheit($response->json());
     }
 
