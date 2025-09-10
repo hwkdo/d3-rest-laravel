@@ -146,43 +146,37 @@ class Client extends Eloquent
 
     public function setUserAbsence($username, $vertretung_username, $text, $start_date, $end_date, $raw = false)
     {
+        $userId = $this->getUserIdByUsername($username);
         $data = [
             'absenceText' => $text,
             'deputyId' => $this->getUserIdByUsername($vertretung_username),
             'endDateTime' => $end_date,
             'startDateTime' => $start_date,
-            'userId' => $this->getUserIdByUsername($username),
+            'userId' => $userId,
             'isAbsent' => true,
         ];
 
         $response = Http::withHeaders([
             'Authorization' => 'Bearer '.config('d3-rest-laravel.api-key'),
             'Accept' => 'application/json',
-        ])->patch(config('d3-rest-laravel.api-userprofile-url').'absence?isAdmin=true&isOwnUser=false', $data);
-        
-        #dump($data);
-        #dump($response->status());
-
-        return $raw ? $response->json() : new BenutzerAbwesenheit($response->json());
+        ])->post(config('d3-rest-laravel.api-userprofile-url').'absence?isAdmin=true&isOwnUser=false', $data);
+                
+        return $raw ? $response->json() : $this->getUserAbsence($userId, $raw);
     }
 
     public function unsetUserAbsence($username, $raw = false)
     {
+        $userId = $this->getUserIdByUsername($username);
         $data = [
             'isAbsent' => false,
-            'userId' => $this->getUserIdByUsername($username),
+            'userId' => $userId,
         ];
-        #dump($data);
         $response = Http::withHeaders([
             'Authorization' => 'Bearer '.config('d3-rest-laravel.api-key'),
             'Accept' => 'application/json',
-        ])->patch(config('d3-rest-laravel.api-userprofile-url').'absence?isAdmin=true&isOwnUser=false', $data);
-
-        
-        // ])->withBody(json_encode(['text' => 'Von '.$von.': '.$message]), 'application/json')->post(config('d3-rest-laravel.api-dms-url').'o2/'.$id.'/n/');
-        
-        #dump($response->status());
-        return $raw ? $response->json() : new BenutzerAbwesenheit($response->json());
+        ])->post(config('d3-rest-laravel.api-userprofile-url').'absence?isAdmin=true&isOwnUser=false', $data);
+                    
+        return $raw ? $response->json() : $this->getUserAbsence($userId, $raw);
     }
 
     public function getUsers()
