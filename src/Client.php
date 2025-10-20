@@ -13,6 +13,7 @@ use Hwkdo\D3RestLaravel\models\Handwerksrolle;
 use Hwkdo\D3RestLaravel\models\Zahlungsbeleg;
 use Hwkdo\D3RestLaravel\models\Bestellvorgang;
 use Hwkdo\D3RestLaravel\models\Lieferschein;
+use Hwkdo\D3RestLaravel\models\HandwerksrolleOnline;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 
@@ -26,6 +27,7 @@ class Client extends Eloquent
         DocTypeEnum::Zahlungsbeleg->value => Zahlungsbeleg::class,
         DocTypeEnum::Bestellvorgang->value => Bestellvorgang::class,
         DocTypeEnum::Lieferschein->value => Lieferschein::class,
+        DocTypeEnum::HandwerksrolleOnline->value => HandwerksrolleOnline::class,
     ];
 
     public static function getBaseUrl(): string
