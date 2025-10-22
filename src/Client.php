@@ -7,19 +7,18 @@ use Hwkdo\D3RestLaravel\DTO\TempUploadDTO;
 use Hwkdo\D3RestLaravel\Enums\DocTypeEnum;
 use Hwkdo\D3RestLaravel\models\Angebot;
 use Hwkdo\D3RestLaravel\models\BenutzerAbwesenheit;
-use \Illuminate\Database\Eloquent\Model as Eloquent;
 use Hwkdo\D3RestLaravel\models\Bestellschein;
-use Hwkdo\D3RestLaravel\models\Handwerksrolle;
-use Hwkdo\D3RestLaravel\models\Zahlungsbeleg;
 use Hwkdo\D3RestLaravel\models\Bestellvorgang;
-use Hwkdo\D3RestLaravel\models\Lieferschein;
+use Hwkdo\D3RestLaravel\models\Handwerksrolle;
 use Hwkdo\D3RestLaravel\models\HandwerksrolleOnline;
+use Hwkdo\D3RestLaravel\models\Lieferschein;
+use Hwkdo\D3RestLaravel\models\Zahlungsbeleg;
+use Illuminate\Database\Eloquent\Model as Eloquent;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 
 class Client extends Eloquent
 {
-
     protected $classes = [
         DocTypeEnum::Bestellschein->value => Bestellschein::class,
         DocTypeEnum::Handwerksrolle->value => Handwerksrolle::class,
@@ -32,7 +31,7 @@ class Client extends Eloquent
 
     public static function getBaseUrl(): string
     {
-        return str(config("d3-rest-laravel.api-base-url"))->beforeLast("/")->value();
+        return str(config('d3-rest-laravel.api-base-url'))->beforeLast('/')->value();
     }
 
     public function getDoc($id, $raw = false)
@@ -42,15 +41,35 @@ class Client extends Eloquent
             'Accept' => 'application/json',
         ])->get(config('d3-rest-laravel.api-dms-url').'o2/'.$id.'/');
 
-        if(!$raw) {
+        if (! $raw) {
             $data = $response->json();
-            $category = collect($data["systemProperties"])->where('id', 'property_category')->first()["value"];
-            $class = $this->classes[$category];            
-            return $class::fromApi($response->json());                        
+            $category = collect($data['systemProperties'])->where('id', 'property_category')->first()['value'];
+            $class = $this->classes[$category];
+
+            return $class::fromApi($response->json());
         } else {
             return $response->json();
-        }        
-    }    
+        }
+    }
+
+    public function deleteDoc($id)
+    {
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer '.config('d3-rest-laravel.api-key'),
+            'Accept' => 'application/json',
+        ])->delete(config('d3-rest-laravel.api-dms-url').'o2/'.$id.'/');
+        return $response->json();
+    }
+
+    public function downloadDoc($id, $target_filepath = null)
+    {
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer '.config('d3-rest-laravel.api-key'),
+            'Accept' => 'application/octet-stream',
+        ])->sink($target_filepath)->get(config('d3-rest-laravel.api-dms-url').'o2/'.$id.'/v/current/b/main/c');
+
+        return $response->successful();
+    }
 
     public function sendNote($von, $message, $id)
     {
@@ -65,30 +84,28 @@ class Client extends Eloquent
 
     public function temporaryUpload($filepath = null, $file = null)
     {
-        if(is_null($file) && is_null($filepath)) {
+        if (is_null($file) && is_null($filepath)) {
             throw new \Exception('Datei oder Pfad nicht angegeben');
-        }
-        elseif(!is_null($file) && !is_null($filepath)) {
+        } elseif (! is_null($file) && ! is_null($filepath)) {
             throw new \Exception('Entweder Datei oder Pfad muss angegeben werden, nicht beide');
-        }
-        elseif(!is_null($filepath)) {
+        } elseif (! is_null($filepath)) {
             $file = File::get($filepath);
         }
-        
-        
+
         $response = Http::withHeaders([
             'Authorization' => 'Bearer '.config('d3-rest-laravel.api-key'),
             'Accept' => 'application/json',
             'Content-Type' => 'application/octet-stream',
         ])->withBody($file, 'application/octet-stream')->post(config('d3-rest-laravel.api-dms-url').'blob/chunk/');
-                        
+
         $message = $response->created() ? 'Datei erfolgreich hochgeladen' : json_encode($response->json());
+
         return new TempUploadDTO(
             success: $response->created(),
             message: $message,
             filename: $response->getHeader('MASTER-FILE-NAME')[0] ?? null,
             location: $response->getHeader('Location')[0] ?? null
-        );        
+        );
     }
 
     public function pushDocument($data)
@@ -99,6 +116,7 @@ class Client extends Eloquent
         ])->attach('data', json_encode($data))->post(config('d3-rest-laravel.api-dms-url').'o2/');
 
         $message = $response->created() ? 'Dokument erfolgreich erstellt' : json_encode($response->json());
+
         return new NewObjectDTO(
             success: $response->created(),
             message: $message,
@@ -106,35 +124,32 @@ class Client extends Eloquent
             id: str($response->getHeader('Location')[0] ?? null)->afterLast('/')->value() ?? null
         );
     }
-    
 
-    public function SearchResult($fulltext = null, DocTypeEnum $doc_type = null, $children_of = null, $page_size = 200, $raw = false)
+    public function SearchResult($fulltext = null, ?DocTypeEnum $doc_type = null, $children_of = null, $page_size = 200, $raw = false)
     {
         $url = config('d3-rest-laravel.api-dms-url').'sr?fulltext='.$fulltext;
-        if($doc_type)
-        {
+        if ($doc_type) {
             $url .= '&objectdefinitionids=['.$doc_type->value.']';
         }
-        if($page_size)
-        {
+        if ($page_size) {
             $url .= '&pagesize='.$page_size;
         }
-        if($children_of)
-        {
+        if ($children_of) {
             $url .= '&children_of='.$children_of;
         }
         $response = Http::withHeaders([
             'Authorization' => 'Bearer '.config('d3-rest-laravel.api-key'),
             'Accept' => 'application/json',
-        ])->get($url);        
-        
-        return $raw ? $response->json() : collect($response->json()['items'])->map(function($item) {
-            if (DocTypeEnum::tryFrom($item["category"]["id"])) {
-                $class = $this->classes[$item["category"]["id"]];            
+        ])->get($url);
+
+        return $raw ? $response->json() : collect($response->json()['items'])->map(function ($item) {
+            if (DocTypeEnum::tryFrom($item['category']['id'])) {
+                $class = $this->classes[$item['category']['id']];
+
                 return $class::fromApi($item);
-            }            
+            }
         })->filter();
-    }        
+    }
 
     public function getUserAbsence($user_id, $raw = false)
     {
@@ -162,7 +177,7 @@ class Client extends Eloquent
             'Authorization' => 'Bearer '.config('d3-rest-laravel.api-key'),
             'Accept' => 'application/json',
         ])->post(config('d3-rest-laravel.api-userprofile-url').'absence?isAdmin=true&isOwnUser=false', $data);
-                
+
         return $raw ? $response->json() : $this->getUserAbsence($userId, $raw);
     }
 
@@ -177,7 +192,7 @@ class Client extends Eloquent
             'Authorization' => 'Bearer '.config('d3-rest-laravel.api-key'),
             'Accept' => 'application/json',
         ])->post(config('d3-rest-laravel.api-userprofile-url').'absence?isAdmin=true&isOwnUser=false', $data);
-                    
+
         return $raw ? $response->json() : $this->getUserAbsence($userId, $raw);
     }
 
@@ -199,6 +214,7 @@ class Client extends Eloquent
     public function getUsernameByUserId($user_id)
     {
         $username = collect($this->getUsers()['resources'])->firstWhere('id', $user_id)['userName'];
+
         return str($username)->after(config('d3-rest-laravel.LDAP_DOMAIN_PREFIX').'\\')->value();
     }
 }
