@@ -52,13 +52,17 @@ class Client extends Eloquent
         }
     }
 
-    public function deleteDoc($id)
+    public function deleteDoc($id, $raw = false)
     {
         $response = Http::withHeaders([
             'Authorization' => 'Bearer '.config('d3-rest-laravel.api-key'),
             'Accept' => 'application/json',
         ])->delete(config('d3-rest-laravel.api-dms-url').'o2/'.$id.'/');
-        return $response->json();
+        if($raw) {
+            return $response->json();
+        } else {
+            return $response->successful();
+        }
     }
 
     public function downloadDoc($id, $target_filepath = null)

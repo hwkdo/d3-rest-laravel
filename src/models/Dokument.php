@@ -205,6 +205,14 @@ abstract class Dokument implements DokumentInterface
         return $response;
     }
 
+    public function delete($raw = false)    
+    {
+        if(!$this->id) {
+            throw new \Exception('Dokument nicht gefunden');
+        }
+        return D3RestLaravel::deleteDoc($this->id, $raw);
+    }
+
     public function fill(array $data): void
     {
         foreach ($this->getAttributeNames() as $attribute) {
