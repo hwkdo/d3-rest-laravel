@@ -5,6 +5,7 @@ return [
     'api-key' => env('D3_REST_API_KEY'),
     'api-base-url' => env('D3_REST_API_BASE_URL'),
     'api-dms-url' => env('D3_REST_API_DMS_URL'),
+    'dms-search-url' => env('D3_REST_DMS_SEARCH_URL', 'https://d3one.hwk-do.de/dms/r/254733d1-1130-5cad-becd-6ca766c084d6/sr/?fulltext='),
     'api-identity-url' => env('D3_REST_API_IDENTITY_URL'),
     'api-userprofile-url' => env('D3_REST_API_USERPROFILE_URL'),
     'LDAP_DOMAIN_PREFIX' => env('D3_REST_LDAP_DOMAIN_PREFIX'),
