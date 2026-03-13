@@ -146,7 +146,9 @@ class Client extends Eloquent
             'Accept' => 'application/json',
         ])->get($url);
 
-        return $raw ? $response->json() : collect($response->json()['items'])->map(function ($item) {
+        $json = $response->json();
+
+        return $raw ? $json : collect($json['items'] ?? [])->map(function ($item) {
             if (DocTypeEnum::tryFrom($item['category']['id'])) {
                 $class = $this->classes[$item['category']['id']];
 
