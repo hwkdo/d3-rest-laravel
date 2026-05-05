@@ -2,6 +2,22 @@
 
 // config for Hwkdo/D3RestLaravel
 return [
+    'log_bestellschein_push' => (bool) env('D3_REST_LOG_BESTELLSCHEIN_PUSH', true),
+    'log_http_traffic' => (bool) env('D3_REST_LOG_HTTP_TRAFFIC', false),
+
+    'dms_delete_uses_o2m_api' => (bool) env('D3_REST_DMS_DELETE_USES_O2M', true),
+    'repository-id' => env('D3_REST_REPOSITORY_ID'),
+
+    'dms_quasi_delete_category_id' => env('D3_REST_QUASI_DELETE_CATEGORY_ID', 'TEST'),
+
+    'dms_quasi_delete_display_value' => env('D3_REST_QUASI_DELETE_DISPLAY_VALUE') ?: null,
+
+    'dms_quasi_delete_extended_property_ids' => ($ids = (string) env('D3_REST_QUASI_DELETE_EXTENDED_IDS', '')) !== ''
+        ? array_values(array_filter(array_map('trim', explode(',', $ids))))
+        : null,
+
+    'dms_quasi_delete_preserve_multivalues' => (bool) env('D3_REST_QUASI_DELETE_PRESERVE_MULTIVALUES', false),
+
     'api-key' => env('D3_REST_API_KEY'),
     'api-base-url' => env('D3_REST_API_BASE_URL'),
     'api-dms-url' => env('D3_REST_API_DMS_URL'),
