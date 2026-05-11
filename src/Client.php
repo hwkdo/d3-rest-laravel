@@ -14,8 +14,12 @@ use Hwkdo\D3RestLaravel\models\HandwerksrolleOnline;
 use Hwkdo\D3RestLaravel\models\Lieferschein;
 use Hwkdo\D3RestLaravel\models\Zahlungsbeleg;
 use Illuminate\Database\Eloquent\Model as Eloquent;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
+use RuntimeException;
+use SoapClient;
+use SoapFault;
 
 class Client extends Eloquent
 {
@@ -50,6 +54,16 @@ class Client extends Eloquent
         } else {
             return $response->json();
         }
+    }
+
+    public function getD3OneObjectUrl(string $id): string
+    {
+        $template = trim((string) config('d3-rest-laravel.d3one-object-url-template', ''));
+        if ($template !== '') {
+            return str_replace('{id}', $id, $template);
+        }
+
+        return rtrim((string) config('d3-rest-laravel.api-dms-url'), '/').'/o2/'.$id.'/';
     }
 
     /**
@@ -504,5 +518,221 @@ class Client extends Eloquent
         $username = collect($this->getUsers()['resources'])->firstWhere('id', $user_id)['userName'];
 
         return str($username)->after(config('d3-rest-laravel.LDAP_DOMAIN_PREFIX').'\\')->value();
+    }
+
+    public function getUserSoap(string $username, bool $raw = false): array
+    {
+        $response = $this->callSoapMethod('d3.GetUser', [
+            'import' => [
+                'user' => $username,
+                'no_sysuser' => 1,
+                'hidden' => 0,
+                'inactive' => 0,
+            ],
+        ]);
+
+        if ($raw) {
+            return $response;
+        }
+
+        $item = data_get($response, 'table.item');
+
+        return is_array($item) ? $item : (array) $item;
+    }
+
+    public function getUserInGroupsSoap(string $username, bool $raw = false): array
+    {
+        $response = $this->callSoapMethod('d3.GetUserInGroup', [
+            'import' => [
+                'user' => $username,
+            ],
+        ]);
+
+        if ($raw) {
+            return $response;
+        }
+
+        $rows = data_get($response, 'table.item');
+        if ($rows === null) {
+            return [];
+        }
+
+        if (is_object($rows) && property_exists($rows, 'usergroup')) {
+            return [(string) $rows->usergroup];
+        }
+
+        return collect(is_array($rows) ? $rows : [])
+            ->map(function ($row) {
+                if (is_object($row) && property_exists($row, 'usergroup')) {
+                    return (string) $row->usergroup;
+                }
+
+                if (is_array($row) && isset($row['usergroup'])) {
+                    return (string) $row['usergroup'];
+                }
+
+                return null;
+            })
+            ->filter(fn ($group) => is_string($group) && $group !== '')
+            ->values()
+            ->all();
+    }
+
+    public function getUserInGroupsSoapCached(string $username, ?int $ttlSeconds = null): array
+    {
+        $normalizedUsername = strtolower(trim($username));
+        if ($normalizedUsername === '') {
+            return [];
+        }
+
+        $cacheKey = 'd3rest:soap:user-groups:'.$normalizedUsername;
+
+        return Cache::remember(
+            $cacheKey,
+            now()->addSeconds($this->normalizeCacheTtlSeconds($ttlSeconds)),
+            fn (): array => $this->getUserInGroupsSoap($normalizedUsername)
+        );
+    }
+
+    public function getD3GroupsSoap(bool $raw = false): array
+    {
+        $response = $this->callSoapMethod('d3.GetUserGroup', [
+            'import' => [],
+        ]);
+
+        if ($raw) {
+            return $response;
+        }
+
+        $rows = data_get($response, 'table.item');
+        if ($rows === null) {
+            return [];
+        }
+
+        if (is_object($rows) && property_exists($rows, 'usergroup')) {
+            return [(string) $rows->usergroup];
+        }
+
+        return collect(is_array($rows) ? $rows : [])
+            ->map(function ($row) {
+                if (is_object($row) && property_exists($row, 'usergroup')) {
+                    return (string) $row->usergroup;
+                }
+
+                if (is_array($row) && isset($row['usergroup'])) {
+                    return (string) $row['usergroup'];
+                }
+
+                return null;
+            })
+            ->filter(fn ($group) => is_string($group) && $group !== '')
+            ->values()
+            ->all();
+    }
+
+    public function getD3GroupsSoapCached(?int $ttlSeconds = null): array
+    {
+        $cacheKey = 'd3rest:soap:all-groups';
+
+        return Cache::remember(
+            $cacheKey,
+            now()->addSeconds($this->normalizeCacheTtlSeconds($ttlSeconds)),
+            fn (): array => $this->getD3GroupsSoap()
+        );
+    }
+
+    protected function callSoapMethod(string $method, array $payload): array
+    {
+        if (! config('d3-rest-laravel.soap-enabled', false)) {
+            throw new RuntimeException('SOAP ist nicht aktiviert. Setze D3_REST_SOAP_ENABLED=true.');
+        }
+
+        $wsdl = (string) config('d3-rest-laravel.soap-wsdl', '');
+        if ($wsdl === '') {
+            throw new RuntimeException('SOAP WSDL fehlt. Setze D3_REST_SOAP_WSDL.');
+        }
+
+        $client = $this->makeSoapClient();
+        $methodsToTry = collect([
+            $method,
+            str_contains($method, '.') ? (string) str($method)->afterLast('.') : null,
+        ])->filter()->unique()->values()->all();
+
+        $lastException = null;
+        $response = null;
+
+        $requestPayload = $this->buildSoapRequestPayload($payload);
+
+        foreach ($methodsToTry as $candidate) {
+            try {
+                $response = $client->__soapCall($candidate, [$requestPayload]);
+                break;
+            } catch (SoapFault $exception) {
+                $lastException = $exception;
+            }
+        }
+
+        if ($response === null) {
+            throw new RuntimeException(
+                'SOAP-Aufruf fehlgeschlagen: '.($lastException?->getMessage() ?? 'Unbekannter SOAP-Fehler'),
+                previous: $lastException
+            );
+        }
+
+        $normalized = json_decode(json_encode($response), true);
+        if (! is_array($normalized)) {
+            throw new RuntimeException('SOAP-Antwort ist nicht auswertbar.');
+        }
+
+        $returnCode = (int) ($normalized['ReturnCode'] ?? 1);
+        if ($returnCode !== 0) {
+            $returnMessage = (string) ($normalized['ReturnMessage'] ?? 'Unbekannter SOAP-Fehler');
+            throw new RuntimeException($returnMessage);
+        }
+
+        return $normalized;
+    }
+
+    protected function buildSoapRequestPayload(array $payload): array
+    {
+        $username = (string) config('d3-rest-laravel.soap-username', '');
+        $password = (string) config('d3-rest-laravel.soap-password', '');
+        $import = $payload['import'] ?? $payload;
+
+        return [
+            'archiv' => [
+                'IpAddr' => (string) config('d3-rest-laravel.soap-dms-ip-addr', ''),
+                'Server' => (string) config('d3-rest-laravel.soap-archive-server', 'T'),
+                'User' => $username,
+                'Password' => $password,
+                'Language' => (string) config('d3-rest-laravel.soap-language', 'de'),
+            ],
+            'WSDownloadFormat' => new \stdClass,
+            'import' => is_array($import) ? $import : [],
+        ];
+    }
+
+    protected function makeSoapClient(): SoapClient
+    {
+        $username = (string) config('d3-rest-laravel.soap-username', '');
+        $password = (string) config('d3-rest-laravel.soap-password', '');
+
+        return new SoapClient((string) config('d3-rest-laravel.soap-wsdl'), [
+            'exceptions' => true,
+            'trace' => false,
+            'cache_wsdl' => WSDL_CACHE_MEMORY,
+            'connection_timeout' => (int) config('d3-rest-laravel.soap-timeout', 10),
+            'login' => $username !== '' ? $username : null,
+            'password' => $password !== '' ? $password : null,
+        ]);
+    }
+
+    protected function normalizeCacheTtlSeconds(?int $ttlSeconds): int
+    {
+        if (is_int($ttlSeconds) && $ttlSeconds > 0) {
+            return $ttlSeconds;
+        }
+
+        return 60 * 60 * 24;
     }
 }
