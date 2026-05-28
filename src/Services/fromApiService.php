@@ -102,6 +102,11 @@ class fromApiService
         } else {
             return [$abteilung];
         }
+    }
+
+    public function getProjektId(): ?string
+    {
+        return $this->getDisplayProperty(397);
     }    
 
     public function getVerfahrensnummer(): ?string

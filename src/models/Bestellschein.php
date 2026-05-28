@@ -58,6 +58,9 @@ class Bestellschein extends Dokument implements DokumentInterface
 
     #[D3id('80')]
     public array $abteilung;
+
+    #[D3id('397')]
+    public ?string $projektId;
     
     public DocTypeEnum $doc_type;
     
@@ -94,6 +97,7 @@ class Bestellschein extends Dokument implements DokumentInterface
             "benutzer" => $fromApiService->getBenutzer(),
             "belegdatum" => $fromApiService->getBelegdatum(),
             "abteilung" => $fromApiService->getAbteilung(),
+            "projektId" => $fromApiService->getProjektId(),
             "doc_type" => DocTypeEnum::Bestellschein,
             "filename" => $fromApiService->getFilename(),
             "link" => $fromApiService->getLink(),
