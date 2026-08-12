@@ -552,30 +552,7 @@ class Client extends Eloquent
             return $response;
         }
 
-        $rows = data_get($response, 'table.item');
-        if ($rows === null) {
-            return [];
-        }
-
-        if (is_object($rows) && property_exists($rows, 'usergroup')) {
-            return [(string) $rows->usergroup];
-        }
-
-        return collect(is_array($rows) ? $rows : [])
-            ->map(function ($row) {
-                if (is_object($row) && property_exists($row, 'usergroup')) {
-                    return (string) $row->usergroup;
-                }
-
-                if (is_array($row) && isset($row['usergroup'])) {
-                    return (string) $row['usergroup'];
-                }
-
-                return null;
-            })
-            ->filter(fn ($group) => is_string($group) && $group !== '')
-            ->values()
-            ->all();
+        return $this->extractUsergroupsFromSoapTableItem(data_get($response, 'table.item'));
     }
 
     public function getUserInGroupsSoapCached(string $username, ?int $ttlSeconds = null): array
@@ -587,11 +564,19 @@ class Client extends Eloquent
 
         $cacheKey = 'd3rest:soap:user-groups:'.$normalizedUsername;
 
-        return Cache::remember(
-            $cacheKey,
-            now()->addSeconds($this->normalizeCacheTtlSeconds($ttlSeconds)),
-            fn (): array => $this->getUserInGroupsSoap($normalizedUsername)
-        );
+        $cached = Cache::get($cacheKey);
+        if (is_array($cached) && $cached !== []) {
+            return $cached;
+        }
+
+        $groups = $this->getUserInGroupsSoap($normalizedUsername);
+
+        // Leere Antworten nicht cachen (SOAP-Fehler/Parser-Lücken würden sonst 24h hängen bleiben).
+        if ($groups !== []) {
+            Cache::put($cacheKey, $groups, now()->addSeconds($this->normalizeCacheTtlSeconds($ttlSeconds)));
+        }
+
+        return $groups;
     }
 
     public function getD3GroupsSoap(bool $raw = false): array
@@ -604,23 +589,44 @@ class Client extends Eloquent
             return $response;
         }
 
-        $rows = data_get($response, 'table.item');
+        return $this->extractUsergroupsFromSoapTableItem(data_get($response, 'table.item'));
+    }
+
+    /**
+     * Normalisiert SOAP table.item zu einer Liste von Gruppennamen.
+     *
+     * Bei genau einem Treffer liefert D3 oft ein einzelnes Objekt/assoziatives Array,
+     * bei mehreren eine Liste — beides muss erkannt werden.
+     *
+     * @return array<int, string>
+     */
+    protected function extractUsergroupsFromSoapTableItem(mixed $rows): array
+    {
         if ($rows === null) {
             return [];
         }
 
         if (is_object($rows) && property_exists($rows, 'usergroup')) {
-            return [(string) $rows->usergroup];
+            $group = trim((string) $rows->usergroup);
+
+            return $group !== '' ? [$group] : [];
+        }
+
+        // Einzelner Treffer nach Array-Konvertierung (nicht array_is_list).
+        if (is_array($rows) && array_key_exists('usergroup', $rows) && ! array_is_list($rows)) {
+            $group = trim((string) $rows['usergroup']);
+
+            return $group !== '' ? [$group] : [];
         }
 
         return collect(is_array($rows) ? $rows : [])
             ->map(function ($row) {
                 if (is_object($row) && property_exists($row, 'usergroup')) {
-                    return (string) $row->usergroup;
+                    return trim((string) $row->usergroup);
                 }
 
                 if (is_array($row) && isset($row['usergroup'])) {
-                    return (string) $row['usergroup'];
+                    return trim((string) $row['usergroup']);
                 }
 
                 return null;
