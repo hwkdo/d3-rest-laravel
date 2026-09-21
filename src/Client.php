@@ -466,9 +466,10 @@ class Client extends Eloquent
     public function setUserAbsence($username, $vertretung_username, $text, $start_date, $end_date, $raw = false)
     {
         $userId = $this->getUserIdByUsername($username);
+        $deputyId = $this->getUserIdByUsername($vertretung_username);
         $data = [
             'absenceText' => $text,
-            'deputyId' => $this->getUserIdByUsername($vertretung_username),
+            'deputyId' => $deputyId,
             'endDateTime' => $end_date,
             'startDateTime' => $start_date,
             'userId' => $userId,
@@ -480,7 +481,28 @@ class Client extends Eloquent
             'Accept' => 'application/json',
         ])->post(config('d3-rest-laravel.api-userprofile-url').'absence?isAdmin=true&isOwnUser=false', $data);
 
-        return $raw ? $response->json() : $this->getUserAbsence($userId, $raw);
+        if (! $response->successful()) {
+            throw new RuntimeException(
+                'D3 setUserAbsence failed with HTTP '.$response->status().': '.$response->body()
+            );
+        }
+
+        if (! $raw) {
+            return $this->getUserAbsence($userId, $raw);
+        }
+
+        $json = $response->json();
+
+        // Die D3-API liefert bei erfolgreichem Schreiben oft 200 mit leerem Body.
+        if (is_array($json)) {
+            return $json;
+        }
+
+        return [
+            'userId' => $userId,
+            'isAbsent' => true,
+            'deputyId' => $deputyId,
+        ];
     }
 
     public function unsetUserAbsence($username, $raw = false)
